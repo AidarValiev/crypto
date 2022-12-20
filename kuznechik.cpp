@@ -1,4 +1,4 @@
-#pragma GCC optimize ("unroll-loops")
+#pragma GCC optimize("unroll-loops")
 #include <iostream>
 #include <iomanip>
 #include <vector>
@@ -51,7 +51,7 @@ namespace NField {
         TElement() : body(0) {}
         explicit TElement(uint8_t value) : body(value) {}
         explicit TElement(int value) : body(value) {}
-        uint8_t GetBody() const {
+        inline uint8_t GetBody() const {
             return this->body;
         }
         void SetBody(uint8_t value) {
@@ -95,7 +95,7 @@ namespace NKuznechik {
     //         throw std::invalid_argument("Bad size");
     //     }
     //     TBlock block;
-    //     for (int i = 0; i < 16; ++i) {   
+    //     for (int i = 0; i < 16; ++i) {
     //         block[i] = NField::TElement(bytes[i]);
     //     }
     //     return block;
@@ -155,7 +155,7 @@ namespace NKuznechik {
         }
         std::memcpy(block, tmp, 16);
     }
-    void Add(NField::TElement* block, uint8_t* key) {
+    inline void Add(NField::TElement* block, uint8_t* key) {
         uint64_t* roflan1 = (uint64_t*)block;
         uint64_t* roflan2 = (uint64_t*)block + 1;
 
@@ -165,7 +165,7 @@ namespace NKuznechik {
         *roflan1 ^= *other1;
         *roflan2 ^= *other2;
     }
-    void Add16(NField::TElement* block, NField::TElement* other) {
+    inline void Add16(NField::TElement* block, NField::TElement* other) {
 
         uint64_t* roflan1 = (uint64_t*)block;
         uint64_t* roflan2 = (uint64_t*)block + 1;
@@ -176,42 +176,41 @@ namespace NKuznechik {
         *roflan1 ^= *other1;
         *roflan2 ^= *other2;
     }
-    void H(NField::TElement* block, bool inversed = false) {
+    inline void H(NField::TElement* block) {
         NField::TElement result[16];
-        if (!inversed) {
-            for (int i = 0; i < 16; ++i) {
-                Add16(result, LINEAR_PRECALC + (256 * i + block[i].GetBody()) * 16);
-            }
-        }
-        else {
-            for (int i = 0; i < 16; ++i) {
-                Add16(result, REVERSED_LINEAR_PRECALC + (256 * i + block[i].GetBody()) * 16);
-            }
+        for (int i = 0; i < 16; ++i) {
+            Add16(result, LINEAR_PRECALC + (256 * i + block[i].GetBody()) * 16);
         }
         std::memcpy(block, result, 16);
     }
-    void N(NField::TElement* block, bool inversed = false) {
+    inline void REVERSED_H(NField::TElement* block) {
+        NField::TElement result[16];
+        for (int i = 0; i < 16; ++i) {
+            Add16(result, REVERSED_LINEAR_PRECALC + (256 * i + block[i].GetBody()) * 16);
+        }
+        std::memcpy(block, result, 16);
+    }
+    inline void N(NField::TElement* block) {
         uint16_t* ptr = (uint16_t*)block;
-        if (inversed) {
-            (*ptr) = REVERSED_S[(*ptr)];
-            (*(ptr + 1)) = REVERSED_S[(*(ptr + 1))];
-            (*(ptr + 2)) = REVERSED_S[(*(ptr + 2))];
-            (*(ptr + 3)) = REVERSED_S[(*(ptr + 3))];
-            (*(ptr + 4)) = REVERSED_S[(*(ptr + 4))];
-            (*(ptr + 5)) = REVERSED_S[(*(ptr + 5))];
-            (*(ptr + 6)) = REVERSED_S[(*(ptr + 6))];
-            (*(ptr + 7)) = REVERSED_S[(*(ptr + 7))];
-        }
-        else {
-            (*ptr) = S[(*ptr)];
-            (*(ptr + 1)) = S[(*(ptr + 1))];
-            (*(ptr + 2)) = S[(*(ptr + 2))];
-            (*(ptr + 3)) = S[(*(ptr + 3))];
-            (*(ptr + 4)) = S[(*(ptr + 4))];
-            (*(ptr + 5)) = S[(*(ptr + 5))];
-            (*(ptr + 6)) = S[(*(ptr + 6))];
-            (*(ptr + 7)) = S[(*(ptr + 7))];
-        }
+        (*ptr) = S[(*ptr)];
+        (*(ptr + 1)) = S[(*(ptr + 1))];
+        (*(ptr + 2)) = S[(*(ptr + 2))];
+        (*(ptr + 3)) = S[(*(ptr + 3))];
+        (*(ptr + 4)) = S[(*(ptr + 4))];
+        (*(ptr + 5)) = S[(*(ptr + 5))];
+        (*(ptr + 6)) = S[(*(ptr + 6))];
+        (*(ptr + 7)) = S[(*(ptr + 7))];
+    }
+    inline void REVERSED_N(NField::TElement* block) {
+        uint16_t* ptr = (uint16_t*)block;
+        (*ptr) = REVERSED_S[(*ptr)];
+        (*(ptr + 1)) = REVERSED_S[(*(ptr + 1))];
+        (*(ptr + 2)) = REVERSED_S[(*(ptr + 2))];
+        (*(ptr + 3)) = REVERSED_S[(*(ptr + 3))];
+        (*(ptr + 4)) = REVERSED_S[(*(ptr + 4))];
+        (*(ptr + 5)) = REVERSED_S[(*(ptr + 5))];
+        (*(ptr + 6)) = REVERSED_S[(*(ptr + 6))];
+        (*(ptr + 7)) = REVERSED_S[(*(ptr + 7))];
     }
     void KeyGeneration(TBytes* storage, uint8_t* key) {
         NField::TElement k1[16], k2[16];
@@ -235,7 +234,7 @@ namespace NKuznechik {
     }
     TBytes kkeys[10];
     bool are = false;
-    void Encode(NField::TElement* block, uint8_t* key) {
+    inline void Encode(NField::TElement* block, uint8_t* key) {
         if (!are) {
             KeyGeneration(kkeys, key);
             are = true;
@@ -254,8 +253,8 @@ namespace NKuznechik {
         }
         for (int i = 9; i > 0; --i) {
             Add(block, kkeys[i]);
-            H(block, true);
-            N(block, true);
+            REVERSED_H(block);
+            REVERSED_N(block);
         }
         Add(block, kkeys[0]);
     }
@@ -319,7 +318,6 @@ namespace NKuznechik {
     }
 }
 
-
 int main() {
     std::ios::sync_with_stdio(false); std::cin.tie(0);
     freopen("in.txt", "r", stdin);
@@ -348,7 +346,6 @@ int main() {
             NKuznechik::String2Block(s[i], ss);
         }
         auto begin = std::chrono::high_resolution_clock::now();
-        NField::TElement block[16];
         for (int i = 0; i < blocks_to_read; ++i) {
             ++cnt;
             NKuznechik::Encode(s[i], key);
@@ -382,7 +379,7 @@ int main() {
             sout << std::hex << std::setw(2) << std::setfill('0') << std::right << int(block[15 - i].GetBody());
         }
         if (sout.str() != "1122334455667700ffeeddccbbaa9988") {
-            std::cout << "Bad decoding" << std::endl;
+            std::cout << "Bad decoding: \n\tExpected: 1122334455667700ffeeddccbbaa9988\n\tDecoded: " + sout.str() << std::endl;
         }
     }
     return 0;
